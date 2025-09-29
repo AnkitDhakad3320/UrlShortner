@@ -1,34 +1,43 @@
+require('dotenv').config(); 
 const express = require("express");
 const path = require("path");
+const cookieParser = require("cookie-parser");
 
 const URL = require("./models/url");
-
 const urlRouter = require("./routes/url");
 const {connectMongoDB} = require("./connect");
 const staticRouter = require("./routes/staticRouter")
-const usersRouter = require("./routes/users")
+const usersRouter = require("./routes/users");
+const { restrictToLoggedInUsersOnly, checkAuth } = require("./middlewares/auth");
+
+const NOT_FOUND = "Not Found";
+const MONGO_CONNECTED = "MongoDB Connected"
+const HomePage = "home";
+const SERVER_PORT = "Server running on port:";
+
 
 const app = express();
-const PORT = 8001;
+const PORT = process.env.PORT;
 
-connectMongoDB("mongodb://localhost:27017/urlShortner")
-.then(()=>console.log("MongoDB Connected"));
+connectMongoDB(process.env.DB_URL)
+.then(()=>console.log(MONGO_CONNECTED));
 
 app.set("view engine", "ejs");
 app.set("views", path.resolve("./views")); 
 
 app.use(express.json());
 app.use(express.urlencoded ({extended:false}));
+app.use(cookieParser());
 
 app.get('/test', async(req, res)=>{
     const allUrls = await URL.find({});
-    return res.render("home", {
+    return res.render(HomePage, {
         urls: allUrls,
     });
 });
 
-app.use("/url" , urlRouter);
-app.use("/", staticRouter);
+app.use("/url" ,restrictToLoggedInUsersOnly, urlRouter);
+app.use("/",checkAuth, staticRouter);
 app.use("/users",usersRouter);
 
 app.get('/url/:shortId', async(req, res)=>{
@@ -47,8 +56,8 @@ app.get('/url/:shortId', async(req, res)=>{
     if(entry){
         res.status(302).redirect(entry.redirectUrl); 
     }else{
-        res.status(404).send("Not Found");
+        res.status(404).send(NOT_FOUND);
     }
 });
 
-app.listen(PORT,()=>console.log(`Server running on port ${PORT}`));
+app.listen(PORT,()=>console.log(SERVER_PORT, PORT));
