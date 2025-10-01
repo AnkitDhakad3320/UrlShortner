@@ -18,7 +18,7 @@
     visitHistory:[{timestamp:{type:Number}}],
     createdBy:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:REF,
+        ref:"users",
     }
  },{timestamps:true});
 
